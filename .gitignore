@@ -1,0 +1,69 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Tooling / environment
+.fvm/
+.env
+.env.*
+!.env.example
+
+# 민감 정보 (키 값) - 절대 커밋 금지
+android/app/google-services.json
+lib/firebase_options.dart
+ios/Runner/GoogleService-Info.plist
+ios/Flutter/Secrets.xcconfig
+!ios/Flutter/Secrets.xcconfig.example
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# CocoaPods - Pods 디렉터리는 재생성 가능
+ios/Pods/
+
+# Xcode local user data
+ios/Runner.xcodeproj/xcuserdata/
+
+# macOS Flutter - 자동 생성 파일
+macos/Flutter/GeneratedPluginRegistrant.swift

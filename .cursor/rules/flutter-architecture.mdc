@@ -1,0 +1,174 @@
+---
+description: Flutter Flux + BLoC 아키텍처 및 화면 전환 규칙 (docs/ARCHITECTURE-FLUX-AND-NAVIGATION.md 기준)
+alwaysApply: true
+---
+
+# Flutter Flux + BLoC 아키텍처 규칙
+
+## 전체 원칙
+
+- **Auth / Signup** → Flux 100% (화면 전환 = 상태, Navigator 사용 금지)
+- **Home 데이터** → Flux (HomeBloc, 데이터 상태만)
+- **Home 내부 이동** → Navigator (HomeShell 안에서만)
+- **Flux = 흐름**, **Navigator = 탐색**
+
+판단 기준: **"이걸 상태로 복구해야 하나?"** → Yes: Flux / No: Navigator
+
+---
+
+## 앱 구조 (필수)
+
+```
+MaterialApp
+ └─ AuthGate   ← 유일한 진입점, Flux 100%
+      ├─ Guest / Signup / Login (상태로 결정)
+      └─ HomeShell
+            └─ HomeNavigator (Navigator 사용 가능)
+```
+
+- **AuthGate 밖**(Auth/ Signup 화면들)에서는 **Navigator.push / pop 으로 화면 전환 금지**. View는 **Action dispatch만** 수행.
+- **AuthGate 안**에서 `Authenticated`일 때만 `HomeShell`을 보여주고, 그 안의 `HomeNavigator`에서만 Navigator 사용.
+
+---
+
+## Flux vs Navigator 체크리스트
+
+### ❌ Flux 쓰지 마라 → Navigator 써라
+
+아래 중 하나라도 해당되면 **Navigator** 사용.
+
+- 화면이 **병렬 탐색 구조**
+- 이전 화면으로 돌아가는 게 **자연스러운 UX**
+- 상태 히스토리가 **의미 없음**
+- 데이터 전달이 **ID 하나면 충분**
+- 앱 재시작 시 복구 필요 없음
+
+예: 홈 → 상세, 설정 → 약관, 카드 클릭 → 정보 페이지, 이미지 미리보기
+
+### ✅ Flux 써라
+
+아래가 하나라도 맞으면 **Flux(BLoC 상태로 화면 결정)**.
+
+- 단계가 **선형**
+- 뒤로가기에 **도메인 규칙 존재**
+- 중간 이탈 시 **복구 필요**
+- 테스트 중요
+- 비즈니스 플로우
+
+예: Auth / Signup, Checkout, 설문, 온보딩, 결제
+
+---
+
+## AuthBloc / AuthGate
+
+- **AuthBloc** = Dispatcher. Auth/ Signup 관련 **모든 화면 전환은 상태(AuthState)로만** 처리.
+- **AuthGate** 하나에서 `BlocBuilder<AuthBloc, AuthState>`로 state에 따라 위젯만 switch.
+- Auth 관련 페이지(Login, Guest, Terms, Nickname, PetProfile 등)에서는 `Navigator.push/pop` 금지. 대신 `context.read<AuthBloc>().add(SomeEvent())`.
+
+```dart
+// ✅ GOOD - AuthGate에서 상태 기반
+switch (state) {
+  Authenticated() => const HomeShell(),
+  SignupTerms() => const TermsAgreementPage(),
+  // ...
+}
+
+// ✅ GOOD - View에서 액션만
+context.read<AuthBloc>().add(TermsAgreed(marketingAgreed));
+
+// ❌ BAD - Auth 플로우에서 Navigator
+Navigator.of(context).push(MaterialPageRoute(builder: (_) => NicknameInputPage(...)));
+```
+
+---
+
+## HomeBloc (데이터만 Flux)
+
+- **HomeBloc은 "데이터 상태"만** 관리. 화면 전환/네비게이션/플로우는 담지 않음.
+- **AuthBloc과 절대 섞지 않음.**
+
+### 역할 분리
+
+| 구역              | 담당       | 역할           |
+| ----------------- | ---------- | -------------- |
+| ProfileCard 등    | HomeBloc   | 유저/펫, 갱신   |
+| MagazineSection   | HomeBloc   | 콘텐츠 로딩/리프레시 |
+| PetRecordSection  | HomeBloc   | 오늘 기록, 새로고침 |
+| AdBanner / FeatureCards | 필요 시 로컬/단순 fetch | 정적 or 단순 이동 |
+
+### HomeBloc 규칙
+
+- Event: `HomeStarted`, `RefreshHome`, `LoadPetRecords`, `LoadMagazines` 등 **데이터 로딩/갱신만**.
+- State: `profile`, `records`, `magazines`, `isLoading` 등 **단일 Store**. `copyWith`로 갱신.
+- Bloc은 **"화면이 어디로 가는지" 모르고**, Repository에서 데이터만 가져와 emit.
+
+### HomeShell / HomeNavigator
+
+- `Authenticated`일 때 `HomeShell`을 보여줌.
+- `HomeShell` 안에서 `BlocProvider<HomeBloc>` 생성 후 `HomeNavigator`(또는 `Navigator`)로 Home 내부 라우팅.
+- Home **안**에서는 `Navigator.push` 등 자유롭게 사용.
+
+---
+
+## 로딩 책임 분리
+
+- **AuthLoading**: 인증(로그인/회원가입 완료) 처리 중만. 데이터 로딩 표현용으로 쓰지 말 것.
+- **HomeLoading**: Home 데이터(프로필, 기록, 매거진 등) 로딩. HomeBloc의 `isLoading` 등으로 처리.
+
+---
+
+## 상태 관리 일반 원칙
+
+- **전역/플로우 상태** → BLoC (AuthBloc, HomeBloc).
+- **한 화면 안에서만 쓰는 UI 상태** → `StatefulWidget` 또는 `useState`.
+- BLoC은 **필요할 때만** 도입. 로컬 상태로 충분하면 BLoC 사용 금지.
+
+---
+
+## 파일명 규칙
+
+- **케밥 케이스(kebab-case)**. 모든 Dart 파일은 **소문자 + 하이픈(-)**.
+
+```
+// ✅ GOOD
+user-profile-page.dart
+auth-repository.dart
+auth-bloc.dart
+home-bloc.dart
+
+// ❌ BAD
+UserProfilePage.dart
+authRepository.dart
+auth_bloc.dart
+```
+
+---
+
+## 프로젝트 구조
+
+```
+lib/
+├── core/
+│   ├── api/
+│   ├── theme/
+│   ├── constants/
+│   └── utils/
+├── features/
+│   ├── auth/
+│   │   ├── bloc/
+│   │   ├── models/
+│   │   └── repository/
+│   └── home/
+│       ├── bloc/
+│       ├── models/
+│       └── repository/
+└── pages/
+    ├── auth/          # AuthGate가 상태로 선택하는 페이지들
+    └── home/          # HomeShell/HomeNavigator 안에서 사용
+```
+
+---
+
+## 참고 문서
+
+- 상세 설계·예시: `docs/ARCHITECTURE-FLUX-AND-NAVIGATION.md`

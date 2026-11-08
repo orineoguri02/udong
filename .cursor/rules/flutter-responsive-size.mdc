@@ -1,0 +1,42 @@
+---
+description: Flutter UI에서 피그마 px를 기기 비율에 맞게 스케일링하는 규칙 (app-size 헬퍼 사용)
+alwaysApply: true
+---
+
+# Flutter 반응형 사이즈 규칙 (`app-size` 헬퍼)
+
+- **반드시** `lib/core/utils/app-size.dart` 의 헬퍼를 사용해서 피그마 px를 스케일링한다.
+- 페이지(또는 큰 섹션) `build` 진입 시에 한 번 **반드시** `SizeConfig.init(context);` 를 호출한다.
+- 고정 숫자(px 느낌)의 **padding, margin, width, height, radius, spacing** 등은 전부 `헬퍼(.s)` 를 사용한다.
+
+```dart
+// ✅ GOOD - 홈/병원 등 페이지의 build 최상단
+@override
+Widget build(BuildContext context) {
+  SizeConfig.init(context);
+
+  return Scaffold(
+    body: Padding(
+      padding: EdgeInsets.symmetric(horizontal: 22.s),
+      child: ...
+    ),
+  );
+}
+
+// ✅ GOOD - 피그마 px 그대로 가져와서 .s 사용
+SizedBox(height: 14.s);
+Container(
+  width: 110.s,
+  height: 4.2.s,
+  borderRadius: BorderRadius.circular(16.s),
+);
+
+// ❌ BAD - 고정값을 직접 사용
+SizedBox(height: 14);
+Padding(
+  padding: EdgeInsets.symmetric(horizontal: 22),
+);
+```
+
+- `const` 컨텍스트 안에서는 `.s` 를 사용할 수 없으므로, 필요 시 `const` 를 제거하고 `.s` 를 쓴다.
+
